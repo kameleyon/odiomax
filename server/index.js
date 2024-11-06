@@ -10,6 +10,12 @@ dotenvConfig();
 
 const app = express();
 
+// Logging middleware
+app.use((req, res, next) => {
+  console.log(`Incoming request: ${req.method} ${req.path}`);
+  next();
+});
+
 // Security middleware
 app.use(helmet());
 app.use(cors({
@@ -35,7 +41,18 @@ client.listVoices({})
   .catch(error => console.error('✗ Failed to connect to Google Cloud TTS:', error.message));
 
 // Routes
-app.use('/api', router);
+app.use('/', router);
+
+// 404 handler
+app.use((req, res, next) => {
+  console.log(`404 - Route not found: ${req.method} ${req.path}`);
+  res.status(404).json({
+    error: {
+      message: 'Route not found',
+      path: req.path
+    }
+  });
+});
 
 // Error handling
 app.use(errorHandler);
