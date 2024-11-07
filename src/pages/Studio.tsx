@@ -44,7 +44,7 @@ export function Studio() {
       });
       
       setTranscript(generatedContent);
-      generateAudio();
+      generateAudio(generatedContent);
     } catch (error) {
       console.error('Generation error:', error);
       setError('Failed to generate content. Please try again.');
@@ -53,13 +53,13 @@ export function Studio() {
     }
   };
 
-  const generateAudio = async () => {
+  const generateAudio = async (textContent: string) => {
     setIsGeneratingAudio(true);
     try {
       const response = await fetch('http://localhost:3000/api/audio/generate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ text: transcript, languageCode: 'en-US', voiceName: settings.voice }),
+        body: JSON.stringify({ text: textContent, languageCode: 'en-US', voiceName: settings.voice }),
       });
       const data = await response.json();
       if (response.ok) {

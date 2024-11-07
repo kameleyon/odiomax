@@ -4,7 +4,7 @@ import { Edit2, Save, RotateCcw } from 'lucide-react';
 interface TranscriptEditorProps {
   transcript: string;
   onChange: (transcript: string) => void;
-  onRegenerate: () => void;
+  onRegenerate: (content: string) => void;
 }
 
 export function TranscriptEditor({ transcript, onChange, onRegenerate }: TranscriptEditorProps) {
@@ -26,7 +26,7 @@ export function TranscriptEditor({ transcript, onChange, onRegenerate }: Transcr
   const handleSave = () => {
     onChange(editedTranscript);
     setIsEditing(false);
-    onRegenerate();
+    onRegenerate(editedTranscript);
   };
 
   return (
@@ -52,7 +52,7 @@ export function TranscriptEditor({ transcript, onChange, onRegenerate }: Transcr
                 <Edit2 className="w-5 h-5" />
               </button>
               <button
-                onClick={onRegenerate}
+                onClick={() => onRegenerate(editedTranscript)}
                 className="p-2 hover:bg-white/10 rounded-lg transition-colors"
                 title="Regenerate audio"
               >
