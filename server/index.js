@@ -4,6 +4,11 @@ import helmet from 'helmet';
 import { config as dotenvConfig } from 'dotenv';
 import { router } from './routes/index.js';
 import { errorHandler } from './middleware/errorHandler.js';
+import path from 'path';
+import { fileURLToPath } from 'url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 // Load environment variables
 dotenvConfig();
@@ -17,12 +22,17 @@ app.use((req, res, next) => {
 });
 
 // Security middleware
-app.use(helmet());
+//app.use(helmet());
 app.use(cors({
   origin: process.env.CORS_ORIGIN || 'http://localhost:5173',
   credentials: true
 }));
+
+
 app.use(express.json());
+
+// Serve generated static audio files
+app.use('/audios', express.static(path.join(__dirname, 'audios')));
 
 // Test Google Cloud credentials on startup
 import { TextToSpeechClient } from '@google-cloud/text-to-speech';

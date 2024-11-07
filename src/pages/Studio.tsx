@@ -47,9 +47,17 @@ export function Studio() {
   const generateAudio = async () => {
     setIsGeneratingAudio(true);
     try {
-      // TODO: Call TTS API to generate audio
-      await new Promise(resolve => setTimeout(resolve, 2000)); // Simulated delay
-      setAudioUrl('dummy-audio-url');
+      const response = await fetch('http://localhost:3000/api/audio/generate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text: transcript, languageCode: 'en-US', voiceName: settings.voice }),
+      });
+      const data = await response.json();
+      if (response.ok) {
+        setAudioUrl(`http://localhost:3000${data.audioUrl}`);
+      } else {
+        console.error('Audio generation error:', data.error);
+      }
     } catch (error) {
       console.error('Audio generation error:', error);
     } finally {
@@ -93,8 +101,8 @@ export function Studio() {
           />
           
           <ContentSettings 
-            settings={settings}
-            onChange={setSettings}
+            //settings={settings as any}
+            //onChange={setSettings}
           />
 
           <button
