@@ -5,6 +5,7 @@ import { ContentSettings } from '../components/studio/ContentSettings';
 import { TranscriptEditor } from '../components/studio/TranscriptEditor';
 import { AudioPlayer } from '../components/studio/AudioPlayer';
 import { PublishConfirmation } from '../components/studio/PublishConfirmation';
+import { generateContent } from '../services/openrouter';
 
 interface ContentSettings {
   category: string;
@@ -29,16 +30,24 @@ export function Studio() {
   const [isGeneratingAudio, setIsGeneratingAudio] = useState(false);
   const [audioUrl, setAudioUrl] = useState<string | null>(null);
   const [showPublishConfirm, setShowPublishConfirm] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const handleGenerate = async () => {
     setIsGenerating(true);
+    setError(null);
+    
     try {
-      // TODO: Call Mistral API to generate content
-      await new Promise(resolve => setTimeout(resolve, 2000)); // Simulated delay
-      setTranscript('Generated transcript will appear here...');
+      const generatedContent = await generateContent({
+        content,
+        tone: settings.tone,
+        category: settings.category
+      });
+      
+      setTranscript(generatedContent);
       generateAudio();
     } catch (error) {
       console.error('Generation error:', error);
+      setError('Failed to generate content. Please try again.');
     } finally {
       setIsGenerating(false);
     }
@@ -48,10 +57,11 @@ export function Studio() {
     setIsGeneratingAudio(true);
     try {
       // TODO: Call TTS API to generate audio
-      await new Promise(resolve => setTimeout(resolve, 2000)); // Simulated delay
+      await new Promise(resolve => setTimeout(resolve, 2000));
       setAudioUrl('dummy-audio-url');
     } catch (error) {
       console.error('Audio generation error:', error);
+      setError('Failed to generate audio. Please try again.');
     } finally {
       setIsGeneratingAudio(false);
     }
@@ -82,6 +92,12 @@ export function Studio() {
           </div>
         </div>
       </div>
+
+      {error && (
+        <div className="p-4 bg-red-500/10 border border-red-500/20 rounded-lg text-red-400">
+          {error}
+        </div>
+      )}
 
       {/* Main Content Area */}
       <div className="grid grid-cols-2 gap-6">
@@ -114,20 +130,22 @@ export function Studio() {
         </div>
 
         {/* Right Side - Transcript */}
-        <div>
+        <div className="h-full">
           {isGenerating ? (
             <div className="h-full flex items-center justify-center bg-white/5 rounded-lg border border-white/10">
               <div className="flex flex-col items-center gap-2 text-white/60">
                 <Loader2 className="w-8 h-8 animate-spin" />
-                <span>Generating content with Mistral 7B...</span>
+                <span>Generating content with Llama 2...</span>
               </div>
             </div>
           ) : transcript ? (
-            <TranscriptEditor
-              transcript={transcript}
-              onChange={setTranscript}
-              onRegenerate={generateAudio}
-            />
+            <div className="h-full">
+              <TranscriptEditor
+                transcript={transcript}
+                onChange={setTranscript}
+                onRegenerate={generateAudio}
+              />
+            </div>
           ) : (
             <div className="h-full flex items-center justify-center bg-white/5 rounded-lg border border-white/10">
               <p className="text-white/60">
