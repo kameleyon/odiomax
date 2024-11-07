@@ -1,10 +1,11 @@
 import { useState } from 'react';
-import { Upload, Loader2, Edit2, Save, RotateCcw, MoreVertical } from 'lucide-react';
+import { Loader2 } from 'lucide-react';
 import { ContentInput } from '../components/studio/ContentInput';
 import { ContentSettings } from '../components/studio/ContentSettings';
 import { TranscriptEditor } from '../components/studio/TranscriptEditor';
 import { AudioPlayer } from '../components/studio/AudioPlayer';
 import { PublishConfirmation } from '../components/studio/PublishConfirmation';
+import { generateContent } from '../services/openrouter';
 
 interface ContentSettings {
   category: string;
@@ -13,65 +14,79 @@ interface ContentSettings {
   voice: string;
 }
 
+const SERVER_URL = 'http://localhost:3000';
+
 export function Studio() {
-  // Content state
   const [content, setContent] = useState('');
-  const [settings, setSettings] = useState<ContentSettings>({
+  const [settings] = useState<ContentSettings>({
     category: 'podcast',
     tone: 'professional',
     voiceType: 'library',
     voice: 'en-US-Standard-A'
   });
-
-  // Generation state
+  
   const [isGenerating, setIsGenerating] = useState(false);
   const [transcript, setTranscript] = useState<string | null>(null);
   const [isGeneratingAudio, setIsGeneratingAudio] = useState(false);
   const [audioUrl, setAudioUrl] = useState<string | null>(null);
   const [showPublishConfirm, setShowPublishConfirm] = useState(false);
-
+  const [error, setError] = useState<string | null>(null);
+  
   const handleGenerate = async () => {
     setIsGenerating(true);
+    setError(null);
+    
     try {
-      // TODO: Call Mistral API to generate content
-      await new Promise(resolve => setTimeout(resolve, 2000)); // Simulated delay
-      setTranscript('Generated transcript will appear here...');
-      generateAudio();
+      const generatedContent = await generateContent({
+        content,
+        tone: settings.tone,
+        category: settings.category
+      });
+      
+      setTranscript(generatedContent);
+      await generateAudio(generatedContent);
     } catch (error) {
       console.error('Generation error:', error);
+      setError('Failed to generate content. Please try again.');
     } finally {
       setIsGenerating(false);
     }
   };
+  
+  const generateAudio = async (text: string) => {
+    if (!text) return;
 
-  const generateAudio = async () => {
     setIsGeneratingAudio(true);
+    setError(null);
+    
     try {
-      const response = await fetch('http://localhost:3000/api/audio/generate', {
+      const response = await fetch(`${SERVER_URL}/api/audio/generate`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ text: transcript, languageCode: 'en-US', voiceName: settings.voice }),
+        body: JSON.stringify({ 
+          text, 
+          languageCode: 'en-US', 
+          voiceName: settings.voice 
+        }),
       });
-      const data = await response.json();
-      if (response.ok) {
-        setAudioUrl(`http://localhost:3000${data.audioUrl}`);
-      } else {
-        console.error('Audio generation error:', data.error);
+      
+      if (!response.ok) {
+        throw new Error('Failed to generate audio');
       }
+      
+      const data = await response.json();
+      setAudioUrl(`${SERVER_URL}${data.audioUrl}`);
+      
     } catch (error) {
       console.error('Audio generation error:', error);
+      setError('Failed to generate audio. Please try again.');
     } finally {
       setIsGeneratingAudio(false);
     }
   };
 
-  const handlePublish = () => {
-    setShowPublishConfirm(true);
-  };
-
   return (
     <div className="max-w-4xl mx-auto space-y-6">
-      {/* Header with Workflow */}
       <div>
         <h1 className="text-3xl font-bold mb-4">Studio</h1>
         <div className="p-3 bg-white/5 rounded-lg border border-white/10">
@@ -91,15 +106,19 @@ export function Studio() {
         </div>
       </div>
 
-      {/* Main Content Area */}
+      {error && (
+        <div className="p-4 bg-red-500/10 border border-red-500/20 rounded-lg text-red-400">
+          {error}
+        </div>
+      )}
+      
       <div className="grid grid-cols-2 gap-6">
-        {/* Left Side - Input and Settings */}
         <div className="space-y-4">
           <ContentInput 
             content={content}
             onChange={setContent}
           />
-          
+
           <ContentSettings 
             //settings={settings as any}
             //onChange={setSettings}
@@ -121,21 +140,22 @@ export function Studio() {
           </button>
         </div>
 
-        {/* Right Side - Transcript */}
-        <div>
+        <div className="h-full">
           {isGenerating ? (
             <div className="h-full flex items-center justify-center bg-white/5 rounded-lg border border-white/10">
               <div className="flex flex-col items-center gap-2 text-white/60">
                 <Loader2 className="w-8 h-8 animate-spin" />
-                <span>Generating content with Mistral 7B...</span>
+                <span>Generating Transcript...</span>
               </div>
             </div>
           ) : transcript ? (
-            <TranscriptEditor
-              transcript={transcript}
-              onChange={setTranscript}
-              onRegenerate={generateAudio}
-            />
+            <div className="h-full">
+              <TranscriptEditor
+                transcript={transcript}
+                onChange={setTranscript}
+                onRegenerate={() => generateAudio(transcript)}
+              />
+            </div>
           ) : (
             <div className="h-full flex items-center justify-center bg-white/5 rounded-lg border border-white/10">
               <p className="text-white/60">
@@ -146,7 +166,6 @@ export function Studio() {
         </div>
       </div>
 
-      {/* Audio Section */}
       {transcript && (
         <div className="p-4 bg-white/5 rounded-lg border border-white/10">
           {isGeneratingAudio ? (
@@ -158,28 +177,11 @@ export function Studio() {
             <div className="space-y-4">
               <div className="flex items-center justify-between">
                 <h2 className="text-lg font-semibold">Generated Audio</h2>
-                <button
-                  onClick={handlePublish}
-                  className="px-4 py-2 bg-green-500 hover:bg-green-600 rounded-lg transition-colors"
-                >
-                  Publish
-                </button>
               </div>
               <AudioPlayer url={audioUrl} />
             </div>
           ) : null}
         </div>
-      )}
-
-      {/* Publish Confirmation Dialog */}
-      {showPublishConfirm && (
-        <PublishConfirmation
-          onConfirm={() => {
-            // TODO: Handle publish
-            setShowPublishConfirm(false);
-          }}
-          onCancel={() => setShowPublishConfirm(false)}
-        />
       )}
     </div>
   );

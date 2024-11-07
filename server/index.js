@@ -1,71 +1,46 @@
 import express from 'express';
 import cors from 'cors';
-import helmet from 'helmet';
 import { config as dotenvConfig } from 'dotenv';
-import { router } from './routes/index.js';
-import { errorHandler } from './middleware/errorHandler.js';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import fs from 'fs';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-// Load environment variables
 dotenvConfig();
 
 const app = express();
-
-// Logging middleware
-app.use((req, res, next) => {
-  console.log(`Incoming request: ${req.method} ${req.path}`);
-  next();
-});
-
-// Security middleware
-//app.use(helmet());
-app.use(cors({
-  origin: process.env.CORS_ORIGIN || 'http://localhost:5173',
-  credentials: true
-}));
-
-
+app.use(cors());
 app.use(express.json());
 
-// Serve generated static audio files
-app.use('/audios', express.static(path.join(__dirname, 'audios')));
+// Audio files directory
+const audiosDir = path.join(__dirname, 'audios');
+if (!fs.existsSync(audiosDir)) {
+  fs.mkdirSync(audiosDir, { recursive: true });
+}
 
-// Test Google Cloud credentials on startup
-import { TextToSpeechClient } from '@google-cloud/text-to-speech';
+// Serve audio files
+app.use('/audios', express.static(audiosDir, {
+  setHeaders: (res) => {
+    res.set('Content-Type', 'audio/mpeg');
+  }
+}));
 
-const client = new TextToSpeechClient({
-  credentials: {
-    client_email: process.env.GOOGLE_CLIENT_EMAIL,
-    private_key: process.env.GOOGLE_PRIVATE_KEY?.replace(/\\n/g, '\n'),
-    project_id: process.env.GOOGLE_PROJECT_ID,
-  },
-});
+// API routes
+app.use('/api', (await import('./routes/index.js')).router);
 
-// Test credentials
-client.listVoices({})
-  .then(() => console.log('✓ Successfully connected to Google Cloud TTS'))
-  .catch(error => console.error('✗ Failed to connect to Google Cloud TTS:', error.message));
+// Root route - list available audio files
+app.get('/', (req, res) => {
+  const files = fs.readdirSync(audiosDir)
+    .filter(file => file.endsWith('.mp3'))
+    .map(file => `/audios/${file}`);
 
-// Routes
-app.use('/', router);
-
-// 404 handler
-app.use((req, res, next) => {
-  console.log(`404 - Route not found: ${req.method} ${req.path}`);
-  res.status(404).json({
-    error: {
-      message: 'Route not found',
-      path: req.path
-    }
+  res.json({
+    status: 'Server is running',
+    audioFiles: files
   });
 });
-
-// Error handling
-app.use(errorHandler);
 
 const PORT = process.env.PORT || 3000;
 
