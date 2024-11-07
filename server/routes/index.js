@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { ttsRoutes } from './tts.routes.js';
 import { authRoutes } from './auth.routes.js';
+import { audioRoutes } from './audio.routes.js';
 
 export const router = Router();
 
@@ -12,3 +13,4 @@ router.get('/health', (req, res) => {
 // API routes
 router.use('/api/auth', authRoutes);
 router.use('/api/tts', ttsRoutes);
+router.use('/api/audio', audioRoutes);
